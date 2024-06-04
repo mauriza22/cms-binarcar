@@ -1,6 +1,6 @@
 /** @format */
 
-import { Button, Col, Row } from 'reactstrap';
+import { Alert, Button, Col, Row } from 'reactstrap';
 import Car from '../../assets/img/inova.car.png';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
@@ -17,6 +17,8 @@ const ListCar = (props) => {
   const [data, setData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
   const pageSize = 10;
 
   const navigate = useNavigate();
@@ -48,6 +50,15 @@ const ListCar = (props) => {
     setCurrentPage(page);
   };
 
+  const handleAlertClose = () => {
+    setAlertVisible(false);
+  };
+
+  const showAlert = (message) => {
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
+
   if (!data) return <div>Loading...</div>;
 
   return (
@@ -63,6 +74,7 @@ const ListCar = (props) => {
           </li>
         </ol>
       </nav>
+
       <div className="d-flex justify-content-between mb-4">
         <h4>{props.title}</h4>
         <Button
@@ -76,6 +88,10 @@ const ListCar = (props) => {
           Add New Car
         </Button>
       </div>
+
+      <Alert color="success" isOpen={alertVisible} toggle={handleAlertClose}>
+        {alertMessage}
+      </Alert>
       <div className="btn-group gap-3 rounded-0 pt-2" role="group" aria-label="Basic checkbox toggle button group">
         <input type="checkbox" className="btn-check rounded-0" id="btncheck1" autoComplete="off" />
         <label className="btn btn-outline-primary rounded-0">All</label>
@@ -107,7 +123,7 @@ const ListCar = (props) => {
                   <h4 style={{ fontSize: '14px', fontWeight: '700' }}>{convertMoney(item?.price)} / Hari</h4>
                   <span className="d-flex align-items-center gap-1" style={{ fontSize: '14px', fontWeight: 'normal' }}>
                     <i className="fa fa-users" />
-                    6-8
+                    6-8 People
                   </span>
                   <span className="d-flex align-items-center gap-1" style={{ fontSize: '14px', fontWeight: 'normal' }}>
                     <i className="fa fa-calendar-day" />
@@ -137,7 +153,7 @@ const ListCar = (props) => {
           ))}
         </Row>
       </div>
-      <Pagination className="justify-content-center" aria-label="Page navigation" style={{ justifyContent: 'center' }}>
+      <Pagination className="justify-content-center pt-4" aria-label="Page navigation" style={{ justifyContent: 'center' }}>
         <PaginationItem disabled={currentPage <= 1}>
           <PaginationLink previous onClick={() => handlePageChange(currentPage - 1)} />
         </PaginationItem>
@@ -157,13 +173,15 @@ const ListCar = (props) => {
         refetch={() => {
           fetchApi(currentPage);
         }}
+        showAlert={showAlert}
       />
     </div>
   );
 };
 
-const ModalDelete = ({ open, setOpen, id, refetch }) => {
+const ModalDelete = ({ open, setOpen, id, refetch, showAlert }) => {
   const navigate = useNavigate();
+
   const removeApi = () => {
     axios
       .delete(`https://api-car-rental.binaracademy.org/admin/car/${id}`, {
@@ -172,18 +190,25 @@ const ModalDelete = ({ open, setOpen, id, refetch }) => {
         },
       })
       .then(() => {
-        navigate('/car');
+        showAlert('Car successfully deleted'); // Show the Bootstrap alert
         setOpen(false);
         document.body.style.overflow = '';
         refetch();
+      })
+      .catch((error) => {
+        console.error('There was an error deleting the car!', error);
+        showAlert('Failed to delete the car'); // Optional: Show an alert if there's an error
       });
   };
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
     }
   }, [open]);
+
   if (!open) return <div />;
+
   return (
     <div
       className="position-fixed w-100"
@@ -197,10 +222,12 @@ const ModalDelete = ({ open, setOpen, id, refetch }) => {
         <div className="h-50 w-25 bg-white d-flex flex-column gap-2 text-center justify-content-center align-items-center">
           <img src={ic_delete} alt="remove-pict" />
           <h4 style={{ fontSize: 16 }}>Menghapus Data Mobil</h4>
-          <p style={{ font: 14 }}>Setelah dihapus, data mobil tidak dapat dikembalikan. Yakin ingin menghapus?</p>
+          <p className="p-2" style={{ font: 14 }}>
+            Setelah dihapus, data mobil tidak dapat dikembalikan. Yakin ingin menghapus?
+          </p>
           <div className="d-flex px-5 gap-3 w-100">
             <Button onClick={removeApi} size="sm" className="w-100" style={{ color: 'white', background: '#0D28A6' }} type="button">
-              ya
+              Ya
             </Button>
             <Button
               onClick={() => {

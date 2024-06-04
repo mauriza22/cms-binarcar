@@ -141,8 +141,9 @@ function BarChart() {
     <div id="chartdiv" style={{ height: '350px' }}>
       <div>
         <select className="form-select" aria-label="Default select example" style={{ width: '15rem' }} onChange={handleFromChange}>
-          <option defaultValue>Open this select menu</option>
-          <option value="2022-01">Jan - 2022</option>
+          <option value="2022-01" defaultValue>
+            Jan - 2022
+          </option>
           <option value="2022-02">Feb - 2022</option>
           <option value="2022-03">Mar - 2022</option>
           <option value="2022-04">Apr - 2022</option>

@@ -7,7 +7,7 @@ import Sidebars from './layout.sidebar';
 const Layout = (props) => {
   return (
     <div className="d-flex">
-      <div>
+      <div className="sticky-left">
         <Sidebars />
       </div>
       <div style={{ width: '100%' }}>

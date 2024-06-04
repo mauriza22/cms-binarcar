@@ -1,4 +1,5 @@
 /** @format */
+import CarForm from '../pages/car/form';
 import ListCar from '../pages/car/index';
 import Dashboard from '../pages/dashboard/index';
 import Login from '../pages/login/index';
@@ -13,6 +14,21 @@ export const privateRoutes = (props) => {
       index: true,
       path: '/car',
       element: <ListCar title="List Car" {...props} />,
+    },
+    {
+      index: true,
+      path: '/car/form',
+      element: <CarForm title="Add New Car" {...props} />,
+    },
+    {
+      index: true,
+      path: '/car/:id',
+      element: 'detail mobil',
+    },
+    {
+      index: true,
+      path: '/car/:id/edit',
+      element: <CarForm title="Created Car" {...props} />,
     },
   ];
 };
