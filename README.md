@@ -1,18 +1,16 @@
 <!-- @format -->
 
-# cms-binarcar
-
-# Binar Car Rental — Customer
+# Binar Car Rental — Admin
 
 ![React - v.18.2](https://img.shields.io/static/v1?label=React&message=v.18.2&color=289fdb&logo=react) ![Bootstrap - v.5.3](https://img.shields.io/badge/Bootstrap-v.5.3-7346b9?logo=bootstrap)
 ![Axios - v.1.6](https://img.shields.io/static/v1?label=Axios&message=v.1.6&color=%23FF3D13&logo=axios)
 
-_✨Binar Car CMS application is an admin application for managing car rental services that can view sales data, add, and delete car rental data._
+_✨Binar Car CMS application is an admin application for managing car rental services that can view sales data, add, edit and delete car rental data._
 
-| Team                        |  Role  |
-| --------------------------- | :----: |
-| Mauria Humaira (Mory)       | Leader |
-| Sindy Erika Ginting (Sindy) | Staff  |
+| Team                        |
+| --------------------------- |
+| Mauria Humaira (Mory)       |
+| Sindy Erika Ginting (Sindy) |
 
 Facilitator: Adreansyah Aswafi
 
