@@ -7,10 +7,10 @@ import Sidebars from './layout.sidebar';
 const Layout = (props) => {
   return (
     <div className="d-flex">
-      <div className="sticky-left">
+      <div style={{ position: 'fixed' }}>
         <Sidebars />
       </div>
-      <div style={{ width: '100%' }}>
+      <div style={{ width: '100%', paddingLeft: '20rem' }}>
         <Headers />
         <div className="content p-5" style={{ width: '100%', backgroundColor: '#F4F5F7' }}>
           <AppCreatePrivateRoutes {...props} />

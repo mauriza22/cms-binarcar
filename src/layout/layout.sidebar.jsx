@@ -17,8 +17,8 @@ const Sidebars = () => {
   };
 
   return (
-    <div className="d-flex" style={{ height: '100vh', width: '290px', position: 'sticky' }}>
-      <div className="d-flex gap-3 flex-column" style={{ backgroundColor: '#0D28A6', width: 70, position: 'sticky', top: 0, height: '100vh' }}>
+    <div className="d-flex" style={{ height: '100vh', width: '290px' }}>
+      <div className="d-flex gap-3 flex-column" style={{ backgroundColor: '#0D28A6', width: 70, top: 0, height: '100vh' }}>
         <div className="p-3">
           <div style={{ width: 34, height: 34, backgroundColor: '#CFD4ED' }} />
         </div>
