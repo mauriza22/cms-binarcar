@@ -2,8 +2,8 @@
 import carLogin from '../../assets/img/big.car.login.png';
 import { Input, Form, FormGroup, Label, Button } from 'reactstrap';
 import logo from '../../assets/icon/logo.svg';
-import axios from 'axios';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../configs/api.config';
 
 const Login = () => {
   const [state, setState] = useState({
@@ -12,6 +12,14 @@ const Login = () => {
   });
 
   const [err, setErr] = useState('');
+
+  useEffect(() => {
+    const message = sessionStorage.getItem('AUTH_ERROR');
+    if (message) {
+      setErr(message);
+      sessionStorage.removeItem('AUTH_ERROR');
+    }
+  }, []);
   const handleChange = (event) => {
     const { value, name } = event.target;
     setState((prev) => ({
@@ -21,19 +29,19 @@ const Login = () => {
   };
 
   const fetchApi = (body) => {
-    axios
-      .post('https://api-car-rental.binaracademy.org/admin/auth/login', { ...body })
+    api
+      .post('/api/v1/auth/login', { email: body.email, password: body.password })
       .then((result) => {
-        if (result?.data?.role === 'Customer') {
-          console.log('ERROR 404');
+        const token = result?.data?.token;
+        if (!token) {
+          setErr('Login gagal');
+          return;
         }
-        if (result?.data?.role === 'Admin') {
-          localStorage.setItem('TOKEN', result?.data?.access_token);
-          window.location.replace('/dashboard');
-        }
+        localStorage.setItem('TOKEN', token);
+        window.location.replace('/dashboard');
       })
       .catch((error) => {
-        setErr(error?.response?.data?.message);
+        setErr(error?.response?.data?.message || 'Login gagal');
       });
   };
 

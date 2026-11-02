@@ -2,8 +2,8 @@
 
 import { Alert, Button, Col, Row } from 'reactstrap';
 import Car from '../../assets/img/inova.car.png';
-import axios from 'axios';
 import { useEffect, useState } from 'react';
+import { api, carImageUrl } from '../../configs/api.config';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router';
 import ic_delete from '../../assets/img/logo.delete.png';
@@ -25,26 +25,28 @@ const ListCar = (props) => {
   const [open, setOpen] = useState(false);
   const [sendId, setSendId] = useState(null);
 
-  const fetchApi = (page) => {
-    axios
-      .get('https://api-car-rental.binaracademy.org/admin/v2/car', {
+  const fetchApi = () => {
+    api
+      .get('/api/v1/cars', {
         params: {
-          page,
-          pageSize,
-        },
-        headers: {
-          access_token: localStorage?.getItem('TOKEN'),
+          page: 1,
+          limit: 100,
         },
       })
       .then((result) => {
-        setData(result?.data?.cars);
-        setTotalPages(result?.data?.pageCount);
+        const cars = result?.data?.data || [];
+        setData(cars);
+        setTotalPages(Math.max(1, Math.ceil(cars.length / pageSize)));
+      })
+      .catch(() => {
+        setData([]);
+        setTotalPages(1);
       });
   };
 
   useEffect(() => {
-    fetchApi(currentPage);
-  }, [currentPage]);
+    fetchApi();
+  }, []);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -107,27 +109,34 @@ const ListCar = (props) => {
       </div>
       <div>
         <Row className="gap-y-2">
-          {data?.map((item, index) => (
-            <Col lg={4} key={index} className="gy-4">
+          {data?.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((item) => (
+            <Col lg={4} key={item.id} className="gy-4">
               <div
                 className="bg-white p-4 border-1 rounded-3 shadow-sm"
                 style={{
                   background: 'white',
                   width: '100%',
                 }}>
-                <img src={item.image ?? Car} alt="picimages" style={{ width: '100%', height: 210 }} />
+                <img
+                  src={carImageUrl(item.image) ?? Car}
+                  alt="picimages"
+                  style={{ width: '100%', height: 210, objectFit: 'cover' }}
+                  onError={(event) => {
+                    event.currentTarget.src = Car;
+                  }}
+                />
                 <div className="d-flex flex-column gap-2">
                   <h4 className="pt-3" style={{ fontSize: '14px', fontWeight: 'normal' }}>
-                    {item.name ?? 'Unindetify car'}
+                    {[item.manufacture, item.model].filter(Boolean).join(' ') || 'Unindetify car'}
                   </h4>
-                  <h4 style={{ fontSize: '14px', fontWeight: '700' }}>{convertMoney(item?.price)} / Hari</h4>
+                  <h4 style={{ fontSize: '14px', fontWeight: '700' }}>{convertMoney(item?.rent_per_day)} / Hari</h4>
                   <span className="d-flex align-items-center gap-1" style={{ fontSize: '14px', fontWeight: 'normal' }}>
                     <i className="fa fa-users" />
-                    6-8 People
+                    {item.capacity ? `${item.capacity} orang` : '-'}
                   </span>
                   <span className="d-flex align-items-center gap-1" style={{ fontSize: '14px', fontWeight: 'normal' }}>
                     <i className="fa fa-calendar-day" />
-                    Updated at {format(new Date(item?.updatedAt), 'eee, dd MMM yyyy HH:mm ')}
+                    Updated at {item?.updated_at ? format(new Date(item.updated_at), 'eee, dd MMM yyyy HH:mm ') : '-'}
                   </span>
                 </div>
                 <div className="d-flex gap-4 w-100 pt-3">
@@ -171,7 +180,7 @@ const ListCar = (props) => {
         setOpen={setOpen}
         id={sendId}
         refetch={() => {
-          fetchApi(currentPage);
+          fetchApi();
         }}
         showAlert={showAlert}
       />
@@ -183,12 +192,8 @@ const ModalDelete = ({ open, setOpen, id, refetch, showAlert }) => {
   const navigate = useNavigate();
 
   const removeApi = () => {
-    axios
-      .delete(`https://api-car-rental.binaracademy.org/admin/car/${id}`, {
-        headers: {
-          access_token: localStorage?.getItem('TOKEN'),
-        },
-      })
+    api
+      .delete(`/api/v1/cars/${id}`)
       .then(() => {
         showAlert('Car successfully deleted'); // Show the Bootstrap alert
         setOpen(false);

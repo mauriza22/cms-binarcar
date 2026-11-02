@@ -6,44 +6,39 @@ import { Column } from 'primereact/column';
 import { PrimeReactProvider } from 'primereact/api';
 import 'primereact/resources/primereact.css';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
-import axios from 'axios';
 import { format } from 'date-fns';
+import { api } from '../../configs/api.config';
 
 const DataTables = () => {
   const [orders, setOrders] = useState([]);
-  const token = localStorage.getItem('TOKEN');
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(10); // Page size
-  const [totalRecords, setTotalRecords] = useState(0);
+  const [pageSize] = useState(10);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await axios.get('https://api-car-rental.binaracademy.org/admin/v2/order', {
-          headers: {
-            access_token: `${token}`,
-          },
-        });
+        const [orderResponse, carResponse] = await Promise.all([
+          api.get('/api/v1/orders'),
+          api.get('/api/v1/cars', { params: { page: 1, limit: 100 } }),
+        ]);
 
-        const { orders, count } = response.data;
-
-        // Set total records count for pagination
-        setTotalRecords(count);
-
-        // Ensuring orders is an array
-        const ordersArray = Array.isArray(orders) ? orders : [orders];
+        const ordersArray = Array.isArray(orderResponse.data) ? orderResponse.data : [];
+        const cars = carResponse.data?.data || [];
+        const carsById = Object.fromEntries(cars.map((car) => [car.id, car]));
 
         setOrders(
-          ordersArray.map((item, index) => ({
-            no: (page - 1) * pageSize + index + 1, // Adjusting the number to reflect the correct item number
-            price: new Intl.NumberFormat('id-ID', { style: 'decimal', maximumFractionDigits: 0 }).format(item.total_price),
-            startRent: format(new Date(item.start_rent_at), 'yyyy-MM-dd'),
-            finishRent: format(new Date(item.finish_rent_at), 'yyyy-MM-dd'),
-            userEmail: item.User?.email,
-            car: item.Car?.name || 'Inova',
-            category: item.Car?.category || 'Medium',
-            ...item,
-          }))
+          ordersArray.map((item, index) => {
+            const car = carsById[item.car_id];
+            return {
+              no: index + 1,
+              price: new Intl.NumberFormat('id-ID', { style: 'decimal', maximumFractionDigits: 0 }).format(item.price),
+              startRent: item.start_rent ? format(new Date(item.start_rent), 'yyyy-MM-dd') : '-',
+              finishRent: item.finish_rent ? format(new Date(item.finish_rent), 'yyyy-MM-dd') : '-',
+              userId: item.user_id,
+              car: car ? [car.manufacture, car.model].filter(Boolean).join(' ') : 'Mobil',
+              category: car?.type || '-',
+              ...item,
+            };
+          })
         );
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -51,17 +46,13 @@ const DataTables = () => {
     };
 
     fetchOrders();
-  }, [token, page, pageSize]);
-
-  const handlePageChange = (event) => {
-    setPage(event.page + 1); // Adjust page number for 0-based index
-  };
+  }, []);
 
   return (
     <PrimeReactProvider>
-      <DataTable value={orders} paginator rows={pageSize} totalRecords={totalRecords} onPage={handlePageChange} tableStyle={{ minWidth: '50rem' }}>
+      <DataTable value={orders} paginator rows={pageSize} tableStyle={{ minWidth: '50rem' }}>
         <Column field="no" header="No." style={{ width: '5%' }} />
-        <Column field="userEmail" header="User Email" sortable />
+        <Column field="userId" header="User" sortable />
         <Column field="car" header="Car" sortable />
         <Column field="startRent" header="Start Rent" sortable />
         <Column field="finishRent" header="Finish Rent" />

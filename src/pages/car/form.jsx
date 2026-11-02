@@ -1,37 +1,55 @@
 import { useEffect, useState } from "react";
 import { Button, Col, Input, Row } from "reactstrap";
-import { FileUploader } from "react-drag-drop-files";
-import axios from "axios";
 import { useNavigate, useParams } from "react-router";
+import { api, carImageUrl, rememberCarImage } from "../../configs/api.config";
 
-const fileTypes = ["JPG", "PNG", "GIF"];
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+const splitName = (name = "") => {
+    const trimmed = name.trim();
+    const space = trimmed.indexOf(" ");
+    if (space === -1) {
+        return { manufacture: trimmed, model: trimmed };
+    }
+    return {
+        manufacture: trimmed.slice(0, space),
+        model: trimmed.slice(space + 1),
+    };
+};
+
 const CarForm = (props) => {
     const navigate = useNavigate()
     const { id } = useParams()
+    const [existing, setExisting] = useState(null);
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
     const [state, setState] = useState({
         name: '',
         price: '',
         category: '',
-        status: false,
+        status: true,
         image: null,
     });
     const [preview, setpreview] = useState(null);
+    const [fileName, setFileName] = useState("");
     useEffect(() => {
         if (id) {
-            axios.get(`https://api-car-rental.binaracademy.org/admin/car/${id}`, {
-                headers: {
-                    access_token: localStorage?.getItem('TOKEN')
-                }
-            }).then(result => {
+            api.get(`/api/v1/cars/${id}`).then(result => {
+                const car = result?.data;
+                setExisting(car);
                 setState(prev => ({
                     ...prev,
-                    name: result?.data?.name,
-                    price: result?.data?.price,
-                    category: result?.data?.category
+                    name: [car?.manufacture, car?.model].filter(Boolean).join(" "),
+                    price: car?.rent_per_day ?? "",
+                    category: car?.type ?? "",
+                    status: Boolean(car?.available),
+                    image: null,
                 }))
-                if (result?.data?.image) {
-                    setpreview(result?.data?.image);
+                if (car?.image) {
+                    setpreview(carImageUrl(car.image));
                 }
+            }).catch(() => {
+                setError("Gagal memuat data mobil");
             })
         }
     }, [id])
@@ -42,52 +60,77 @@ const CarForm = (props) => {
             [name]: value
         }))
     }
-    function getBase64(file) {
-        var reader = new FileReader();
+    const readPreview = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(file);
-        reader.onload = function () {
-            setpreview(reader.result)
-        };
-        reader.onerror = function (error) {
-            console.log('Error: ', error);
-        };
-    }
-    const handleChange = (file) => {
-        getBase64(file)
+    });
+    const handleFile = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        const extensionOk = /\.(jpe?g|png|gif|webp)$/i.test(file.name);
+        if (!ACCEPTED_TYPES.includes(file.type) && !extensionOk) {
+            setError("Format foto harus JPG, PNG, GIF, atau WEBP");
+            return;
+        }
+        setError("");
+        setFileName(file.name);
         setState(prev => ({
             ...prev,
             image: file
         }));
-    };
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (id) {
-            const formData = new FormData();
-            if (state?.image) {
-                formData.append("image", state?.image);
-            }
-            formData.append("name", state?.name);
-            formData.append("category", state?.category);
-            formData.append("price", state?.price);
-            formData.append("status", state?.status);
-            axios.put(`https://api-car-rental.binaracademy.org/admin/car/${id}`, formData, {
-                headers: {
-                    access_token: localStorage?.getItem('TOKEN')
-                }
-            }).then(() => navigate('/car'))
+        try {
+            setpreview(await readPreview(file));
+        } catch {
+            setError("Foto tidak bisa dibaca. Coba pilih file lain.");
         }
-        else {
-            const formData = new FormData();
-            formData.append("image", state?.image);
-            formData.append("name", state?.name);
-            formData.append("category", state?.category);
-            formData.append("price", state?.price);
-            formData.append("status", state?.status);
-            axios.post('https://api-car-rental.binaracademy.org/admin/car', formData, {
-                headers: {
-                    access_token: localStorage?.getItem('TOKEN')
-                }
-            }).then(() => navigate('/car'))
+    };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        const { manufacture, model } = splitName(state.name);
+        if (!manufacture || !state.price || !state.category) {
+            setError("Nama, harga, dan kategori wajib diisi");
+            return;
+        }
+        setSaving(true);
+        try {
+            let imageName = existing?.image || "car01.min.jpg";
+            if (state.image instanceof File) {
+                const formData = new FormData();
+                formData.append("image", state.image);
+                const uploaded = await api.post("/api/v1/cars/image", formData);
+                imageName = uploaded?.data?.filename || imageName;
+                if (preview) rememberCarImage(imageName, preview);
+            }
+            const body = {
+                plate: existing?.plate || `CMS-${Date.now().toString().slice(-6)}`,
+                manufacture,
+                model: model || manufacture,
+                image: imageName,
+                rent_per_day: Number(state.price),
+                capacity: existing?.capacity || 4,
+                description: existing?.description || state.name,
+                available_at: existing?.available_at || new Date().toISOString(),
+                transmission: existing?.transmission || "Automatic",
+                available: Boolean(state.status),
+                type: state.category,
+                year: existing?.year || new Date().getFullYear(),
+                options: existing?.options || [],
+                specs: existing?.specs || [],
+            };
+            if (id) {
+                await api.put(`/api/v1/cars/${id}`, body);
+            } else {
+                await api.post("/api/v1/cars", body);
+            }
+            navigate("/car");
+        } catch (err) {
+            setError(err?.response?.data?.message || "Gagal menyimpan data mobil");
+        } finally {
+            setSaving(false);
         }
     }
     return (
@@ -97,6 +140,11 @@ const CarForm = (props) => {
             </div>
             <form onSubmit={handleSubmit}>
                 <div className="bg-white p-3">
+                    {error && (
+                        <div className="alert alert-danger" role="alert">
+                            {error}
+                        </div>
+                    )}
                     <Row>
                         <Col lg={10} className="d-flex flex-column gap-4">
                             <div className="d-flex gap-4 align-items-center">
@@ -110,17 +158,22 @@ const CarForm = (props) => {
                             <div className="d-flex gap-4 align-items-center">
                                 <label style={{ width: '135px' }}>Foto</label>
                                 {/* <Input className="w-50" /> */}
-                                <FileUploader
-                                    handleChange={handleChange}
-                                    name="image"
-                                    types={fileTypes}
-                                    // eslint-disable-next-line react/no-children-prop
-                                    children={
-                                        <div className="border rounded-2 relative flex justify-content-end align-items-center" style={{ width: 423, height: 38 }}>
-                                            <p className="px-2" style={{ marginTop: 8, fontSize: 14, color: '#8A8A8A' }}>Upload Foto Mobil</p>
-                                            <i className="fa fa-upload" style={{ position: 'absolute', right: 15, bottom: 11 }} />
-                                        </div>
-                                    }
+                                <label
+                                    htmlFor="car-image"
+                                    className="border rounded-2 d-flex align-items-center justify-content-between px-2 mb-0"
+                                    style={{ width: 423, height: 38, cursor: 'pointer' }}
+                                >
+                                    <span style={{ fontSize: 14, color: fileName ? '#000' : '#8A8A8A' }}>
+                                        {fileName || 'Upload Foto Mobil'}
+                                    </span>
+                                    <i className="fa fa-upload" />
+                                </label>
+                                <input
+                                    id="car-image"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                                    style={{ display: 'none' }}
+                                    onChange={handleFile}
                                 />
                             </div>
                             {preview && <div>
@@ -136,7 +189,7 @@ const CarForm = (props) => {
                     </Row>
                     <div className="mt-4 d-flex gap-3">
                         <Button onClick={() => navigate('/car')} type="button" size="sm" style={{ background: '#FFF', color: '#0D28A6' }}>Cancel</Button>
-                        <Button type="submit" size="sm" style={{ background: '#0D28A6' }}>Save</Button>
+                        <Button type="submit" size="sm" style={{ background: '#0D28A6' }} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
                     </div>
                 </div>
             </form>
